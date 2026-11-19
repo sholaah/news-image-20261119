@@ -1,91 +1,112 @@
-"""Build entry.png for make.fun news-image-20261119.
+"""Compose the 19 November 2026 cover for the make.fun daily news-image bounty.
 
-The base illustration (assets/) was generated in-session as an editorial
-collage of Thursday 19 November 2026's top stories, drawn as large,
-instantly readable symbols:
-  - Grand Theft Auto VI begins its global rollout: a neon Vice City
-    skyline, palm trees, a pink-and-teal sports car and a giant game
-    controller over the city
-  - The planned Xi-Trump-Putin trilateral at APEC in Shenzhen: three
-    leaders at one summit table under the US, Chinese and Russian flags
-  - The Crimean Bridge hit for the third time this week: a long sea
-    bridge with a fireball at mid-span, traffic closed while damage
-    is assessed
-  - Nvidia's record $115.8B quarter and $130B guide, yet the shares
-    fell ~3% as the board refused to reinstate Jensen Huang and hawkish
-    Fed minutes lifted the dollar: a giant AI chip over a plunging
-    red stock chart
-  - Anthropic's $81.3B raise, the biggest IPO of all time: a stock
-    exchange bell with coins rocketing upward
-  - NASA's Voyager 1 reaching one light-day from Earth, 50 years
-    after launch: a deep-space probe beaming its signal home
-  - The Optimizely supply-chain attack: malicious code served to 178
-    organisations (Zoom, CNN, BBC, HSBC, Ledger among them) swapping
-    crypto wallet addresses and skimming cards - a hooded hacker, a
-    web of screens and a broken padlock
-  - Crypto in extreme fear: Bitcoin near $62.6K, below its 200-week
-    average, ETF outflows running - a cracked gold coin sinking in
-    heavy seas under a falling red arrow
-This script frames the collage as a magazine cover in the style of
-The Economist's "The World Ahead": a small red masthead box and a
-large date title above the full-bleed art, at most 1024x1024, 1 MiB.
+Design: a full-bleed Economist-style collage (generated artwork, kept in
+assets/) fills the square canvas under a cream masthead band that carries a
+red nameplate, the date as a huge black title, and a one-line gray tagline.
+
+The eight stories the artwork has to carry, all from 19 November 2026:
+  * GTA VI begins its global rollout; players finally enter Vice City
+  * Xi, Trump and Putin plan a trilateral meeting at APEC Shenzhen
+  * The Crimean Bridge is struck for the third time this week
+  * Nvidia beats on earnings ($115.8B revenue) yet the stock falls
+  * Anthropic's $81.3B raise, reported as the biggest IPO of all time
+  * Voyager 1 reaches one light-day from Earth
+  * Optimizely supply-chain attack hits 178 organisations
+  * Bitcoin in extreme fear near $62.6K, below its 200-week average
+
+Deterministic: the same artwork in, the same entry.png out, byte for byte.
 """
+
+from pathlib import Path
+
 from PIL import Image, ImageDraw, ImageFont
-import os
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-SRC = os.path.join(HERE, "assets", "media-generation-media-generation-world-19nov-e-0-eac811b7-4d0c-46d4-9dcd-475224d14192.png")
-OUT = os.path.join(HERE, "entry.png")
-FONT_DIR = "/usr/share/fonts/truetype/dejavu"
-NAVY = (9, 24, 43)
-GOLD = (242, 193, 78)
-WHITE = (245, 247, 250)
+ROOT = Path(__file__).resolve().parent
+SOURCE_ART = ROOT / "assets" / (
+    "media-generation-media-generation-world-19nov-e-0-"
+    "eac811b7-4d0c-46d4-9dcd-475224d14192.png"
+)
+TARGET = ROOT / "entry.png"
 
-W, H = 1024, 1024
-TOP_H, BOT_H = 190, 0
+CANVAS = 1024          # the bounty caps the image at 1024x1024
+BAND = 190             # masthead band height; the artwork starts below it
+PAPER = (247, 244, 235)
+NAMEPLATE_RED = (227, 18, 11)
+INK = (17, 17, 17)
+MUTE = (110, 110, 110)
 
-
-def font(name, size):
-    return ImageFont.truetype(os.path.join(FONT_DIR, name), size)
-
-
-def centered(draw, y, text, fnt, fill):
-    box = draw.textbbox((0, 0), text, font=fnt)
-    draw.text(((W - (box[2] - box[0])) // 2, y), text, font=fnt, fill=fill)
+FONT_DIR = Path("/usr/share/fonts/truetype/dejavu")
+SERIF_BOLD = str(FONT_DIR / "DejaVuSerif-Bold.ttf")
+SANS = str(FONT_DIR / "DejaVuSans.ttf")
+SANS_BOLD = str(FONT_DIR / "DejaVuSans-Bold.ttf")
 
 
-def main():
-    art = Image.open(SRC).convert("RGB")
-    art = art.resize((W, H - TOP_H - BOT_H), Image.LANCZOS)
-    page = Image.new("RGB", (W, H), (247, 244, 235))
-    page.paste(art, (0, TOP_H))
+def load_font(path, size):
+    return ImageFont.truetype(path, size)
+
+
+def fit_font(path, text, start_size, max_width, draw):
+    """Largest size at or below start_size whose text fits max_width."""
+    size = start_size
+    while size > 10:
+        font = load_font(path, size)
+        box = draw.textbbox((0, 0), text, font=font)
+        if box[2] - box[0] <= max_width:
+            return font
+        size -= 2
+    return load_font(path, size)
+
+
+def centered(draw, cx, y, text, font, fill):
+    """Draw text horizontally centered on cx; return its bottom edge."""
+    box = draw.textbbox((0, 0), text, font=font)
+    w = box[2] - box[0]
+    draw.text((cx - w / 2 - box[0], y), text, font=font, fill=fill)
+    return y + (box[3] - box[1])
+
+
+def artwork_panel():
+    """The generated collage, downscaled to fill everything below the band."""
+    art = Image.open(SOURCE_ART).convert("RGB")
+    return art.resize((CANVAS, CANVAS - BAND), Image.LANCZOS)
+
+
+def paint_masthead(page):
     draw = ImageDraw.Draw(page)
+    half = CANVAS // 2
 
-    draw.rectangle([312, 14, 712, 58], fill=(227, 18, 11))
-    centered(draw, 22, "THE WORLD TODAY", font("DejaVuSans-Bold.ttf", 30), WHITE)
-    centered(draw, 72, "19 NOVEMBER 2026", font("DejaVuSans-Bold.ttf", 84), (17, 17, 17))
-    centered(draw, 164, "THURSDAY · THE DAY IN ONE IMAGE", font("DejaVuSans-Bold.ttf", 20), (90, 90, 90))
+    # Red nameplate with the paper's name in white serif caps.
+    plate_font = load_font(SERIF_BOLD, 30)
+    label = "THE WORLD TODAY"
+    box = draw.textbbox((0, 0), label, font=plate_font)
+    tw, th = box[2] - box[0], box[3] - box[1]
+    pad_x, pad_y = 26, 9
+    x0, y0 = half - tw / 2 - pad_x, 14
+    x1, y1 = half + tw / 2 + pad_x, y0 + th + 2 * pad_y
+    draw.rectangle([x0, y0, x1, y1], fill=NAMEPLATE_RED)
+    draw.text((half - tw / 2 - box[0], y0 + pad_y - box[1]),
+              label, font=plate_font, fill=(255, 255, 255))
 
-    headlines = [
-        ((242, 193, 78), "GTA VI LAUNCHES WORLDWIDE: GAMERS ENTER VICE CITY"),
-        ((231, 76, 60), "CRIMEAN BRIDGE HIT FOR THE THIRD TIME THIS WEEK"),
-        ((230, 126, 34), "XI, TRUMP & PUTIN: TRILATERAL PLANNED AT APEC SHENZHEN"),
-        ((93, 173, 226), "NVIDIA BEATS, STOCK FALLS · HAWKISH FED LIFTS DOLLAR"),
-        ((46, 204, 113), "CYBER: OPTIMIZELY ATTACK TOUCHES 178 ORGANISATIONS"),
-        ((175, 122, 197), "CRYPTO: BITCOIN NEAR $62.6K · FEAR & GREED AT 10"),
-    ]
-    fnt = font("DejaVuSans-Bold.ttf", 24)
-    y = H - BOT_H + 10
-    for color, text in headlines:
-        draw.rectangle([28, y + 4, 44, y + 20], fill=color)
-        draw.text((58, y), text, font=fnt, fill=WHITE)
-        y += 34
+    # The date, set huge; then the tagline under it in quiet gray.
+    # Fit the date to the band width so the title never touches the edges.
+    date_font = fit_font(SERIF_BOLD, "19 NOVEMBER 2026", 84, CANVAS - 32, draw)
+    bottom = centered(draw, half, 64, "19 NOVEMBER 2026", date_font, INK)
+    tag_font = load_font(SANS, 20)
+    centered(draw, half, bottom + 14,
+             "THURSDAY · THE DAY IN ONE IMAGE", tag_font, MUTE)
 
-    page.save(OUT, optimize=True)
-    if os.path.getsize(OUT) > 1024 * 1024:
-        page.quantize(colors=256, method=Image.MEDIANCUT).save(OUT, optimize=True)
-    print("entry.png:", page.size, os.path.getsize(OUT), "bytes")
+
+def build_cover():
+    page = Image.new("RGB", (CANVAS, CANVAS), PAPER)
+    page.paste(artwork_panel(), (0, BAND))
+    paint_masthead(page)
+    # Adaptive palette keeps the flat illustration crisp and the file
+    # comfortably under the bounty's 1 MiB cap.
+    page = page.quantize(colors=256, method=Image.MEDIANCUT)
+    page.save(TARGET, format="PNG", optimize=True)
+    return TARGET
 
 
 if __name__ == "__main__":
-    main()
+    out = build_cover()
+    print(f"wrote {out} ({out.stat().st_size} bytes)")
